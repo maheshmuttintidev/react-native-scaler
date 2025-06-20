@@ -1,17 +1,19 @@
 {
-    "compilerOptions": {
-      "target": "es6",
-      "module": "esnext",
-      "jsx": "react-native",
-      "declaration": true,
-      "outDir": "./dist",
-      "strict": true,
-      "esModuleInterop": true,
-      "moduleResolution": "node",
-      "skipLibCheck": true,
-      "noEmitOnError": true,
-      "isolatedModules": true
-    },
-    "include": ["src/**/*"],
-    "exclude": ["node_modules", "dist", "tests"]
-  }
+  "compilerOptions": {
+    "target": "ES2018",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "declaration": true,
+    "outDir": "./dist",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "jsx": "react-native",
+    "baseUrl": ".",
+    "paths": {
+      "@shayrn/react-native-scaler": ["src/index.ts"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
