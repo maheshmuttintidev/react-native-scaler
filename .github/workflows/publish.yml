@@ -22,29 +22,17 @@ jobs:
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
+          cache: 'yarn'
 
-      # Set up Yarn with cache
+      # Set up Yarn
       - name: Set up Yarn
         run: |
           corepack enable
-          yarn set version stable
-          yarn config set nodeLinker pnp
-          yarn config set pnpMode strict
-          yarn config set enableStrictSsl true
-          yarn config set npmAuthToken ${{ secrets.NPM_TOKEN }}
+          yarn set version 4.9.2
+          yarn config set nodeLinker node-modules # Use node-modules linker
+          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > .npmrc
 
-      # Cache Yarn dependencies
-      - name: Cache Yarn dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            .yarn/cache
-            .yarn/unplugged
-          key: yarn-cache-${{ hashFiles('yarn.lock') }}
-          restore-keys: |
-            yarn-cache-
-
-      # Install dependencies with Yarn PnP
+      # Install dependencies
       - name: Install dependencies
         run: yarn install --immutable
 
@@ -53,6 +41,21 @@ jobs:
         run: |
           if [ ! -f package.json ]; then
             echo "Error: package.json not found"
+            exit 1
+          fi
+
+      # Build package
+      - name: Build package
+        run: |
+          yarn build || { echo "Build failed"; exit 1; }
+          ls -la dist
+
+      # Verify dist folder
+      - name: Verify dist folder
+        run: |
+          ls -la dist
+          if [ ! -f dist/index.js ] || [ ! -f dist/index.esm.js ] || [ ! -f dist/index.d.ts ]; then
+            echo "Error: dist files missing"
             exit 1
           fi
 
@@ -66,7 +69,7 @@ jobs:
       - name: Bump version
         run: |
           echo "Current version: $(node -p "require('./package.json').version")"
-          node -e 'const fs = require("fs"); const pkg = require("./package.json"); const [major, minor, patch] = pkg.version.split(".").map(Number); pkg.version = `${major}.${minor}.${patch + 1}`; fs.writeFileSync("package.json", JSON.stringify(pkg, null, 2));'
+          yarn version --patch --no-git-tag-version
           git add package.json
           git commit -m "chore: bump patch version [skip ci]" || echo "No changes to commit"
           git push origin main
@@ -74,15 +77,12 @@ jobs:
           echo "New version: $NEW_VERSION"
           git tag v${NEW_VERSION}
           git push origin v${NEW_VERSION}
-        env:
-          NODE_OPTIONS: --require ./.pnp.cjs
 
       # Debug npm authentication
       - name: Debug npm authentication
         run: |
           echo "NPM_TOKEN is set: ${{ secrets.NPM_TOKEN != '' }}"
           npm whoami
-          yarn config get npmAuthToken
           echo "Package name: $(node -p "require('./package.json').name")"
           echo "Package version: $(node -p "require('./package.json').version")"
         env:
