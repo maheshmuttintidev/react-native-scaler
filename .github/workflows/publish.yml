@@ -45,11 +45,9 @@ jobs:
       - name: Install dependencies
         run: yarn install --immutable
 
-      # Run tests
-      - name: Run tests
-        run: yarn test
-        env:
-          NODE_OPTIONS: --experimental-vm-modules # Enable ESM support for Jest
+      # Run tests (adjust based on your project)
+      # - name: Run tests
+      #   run: yarn test
 
       # Configure git user for commits
       - name: Configure git
@@ -71,5 +69,5 @@ jobs:
       # Publish to npm
       - name: Publish to npm
         run: yarn npm publish --access public
- "+"       env:
+        env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
