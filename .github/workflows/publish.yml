@@ -77,8 +77,16 @@ jobs:
         env:
           NODE_OPTIONS: --require ./.pnp.cjs
 
+      # Debug npm authentication
+      - name: Debug npm authentication
+        run: |
+          echo "NPM_TOKEN is set: ${{ secrets.NPM_TOKEN != '' }}"
+          npm whoami
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
       # Publish to npm
       - name: Publish to npm
-        run: yarn npm publish --access public
+        run: yarn npm publish --access public --verbose
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
