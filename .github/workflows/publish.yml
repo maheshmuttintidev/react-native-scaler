@@ -66,9 +66,9 @@ jobs:
       - name: Bump version
         run: |
           echo "Current version: $(node -p "require('./package.json').version")"
-          yarn version patch --no-git-tag-version
+          node -e "const fs = require('fs'); const pkg = require('./package.json'); const [major, minor, patch] = pkg.version.split('.').map(Number); pkg.version = \`\${major}.\${minor}.\${patch + 1}\`; fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));"
           git add package.json
-          git commit -m "chore: bump version [skip ci]" || echo "No changes to commit"
+          git commit -m "chore: bump patch version [skip ci]" || echo "No changes to commit"
           git push origin main
           NEW_VERSION=$(node -p "require('./package.json').version")
           echo "New version: $NEW_VERSION"
