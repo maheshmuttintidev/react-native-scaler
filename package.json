@@ -6,7 +6,6 @@
   "module": "dist/index.esm.js",
   "type": "module",
   "types": "dist/index.d.ts",
-  "packageManager": "yarn@4.9.2",
   "files": [
     "dist"
   ],
