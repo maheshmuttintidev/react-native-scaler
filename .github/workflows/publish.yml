@@ -31,12 +31,15 @@ jobs:
           yarn set version stable
           yarn config set nodeLinker pnp
           yarn config set pnpMode strict
+          yarn config set enableStrictSsl true
 
       # Cache Yarn dependencies
       - name: Cache Yarn dependencies
         uses: actions/cache@v4
         with:
-          path: .yarn/cache
+          path: |
+            .yarn/cache
+            .yarn/unplugged
           key: yarn-cache-${{ hashFiles('yarn.lock') }}
           restore-keys: |
             yarn-cache-
@@ -45,9 +48,13 @@ jobs:
       - name: Install dependencies
         run: yarn install --immutable
 
-      # Run tests (adjust based on your project)
-      # - name: Run tests
-      #   run: yarn test
+      # Verify package.json exists
+      - name: Verify package.json
+        run: |
+          if [ ! -f package.json ]; then
+            echo "Error: package.json not found"
+            exit 1
+          fi
 
       # Configure git user for commits
       - name: Configure git
@@ -58,13 +65,17 @@ jobs:
       # Bump version and create git tag
       - name: Bump version
         run: |
+          echo "Current version: $(node -p "require('./package.json').version")"
           yarn version patch --no-git-tag-version
           git add package.json
-          git commit -m "chore: bump version [skip ci]"
+          git commit -m "chore: bump version [skip ci]" || echo "No changes to commit"
           git push origin main
           NEW_VERSION=$(node -p "require('./package.json').version")
+          echo "New version: $NEW_VERSION"
           git tag v${NEW_VERSION}
           git push origin v${NEW_VERSION}
+        env:
+          NODE_OPTIONS: --require ./.pnp.cjs # Ensure Yarn PnP is loaded for Node.js
 
       # Publish to npm
       - name: Publish to npm
