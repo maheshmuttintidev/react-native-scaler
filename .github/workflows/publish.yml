@@ -59,8 +59,8 @@ jobs:
       # Configure git user for commits
       - name: Configure git
         run: |
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
+          git config user.name "maheshmuttintidev"
+          git config user.email "maheshmuttintidev@gmail.com"
 
       # Bump version and create git tag
       - name: Bump version
