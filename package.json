@@ -62,6 +62,5 @@
     "lint": "eslint src --ext .ts,.tsx",
     "format": "prettier --write src/**/*.{ts,tsx}",
     "test": "jest"
-  },
-  "packageManager": "yarn@4.9.2"
+  }
 }
