@@ -1,4 +1,4 @@
-# GitHub Actions workflow for auto-publishing an npm package with version bump
+# GitHub Actions workflow for auto-publishing a React Native package with Yarn PnP
 name: Publish Package
 
 on:
@@ -24,13 +24,30 @@ jobs:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
 
-      # Install dependencies
-      - name: Install dependencies
-        run: npm install
+      # Set up Yarn with cache
+      - name: Set up Yarn
+        run: |
+          corepack enable
+          yarn set version stable
+          yarn config set nodeLinker pnp
+          yarn config set pnpMode strict
 
-      # Run tests (optional, adjust based on your project)
+      # Cache Yarn dependencies
+      - name: Cache Yarn dependencies
+        uses: actions/cache@v4
+        with:
+          path: .yarn/cache
+          key: yarn-cache-${{ hashFiles('yarn.lock') }}
+          restore-keys: |
+            yarn-cache-
+
+      # Install dependencies with Yarn PnP
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      # Run tests (adjust based on your project)
       - name: Run tests
-        run: npm test
+        run: yarn test
 
       # Configure git user for commits
       - name: Configure git
@@ -41,7 +58,7 @@ jobs:
       # Bump version and create git tag
       - name: Bump version
         run: |
-          npm version patch --no-git-tag-version
+          yarn version patch --no-git-tag-version
           git add package.json
           git commit -m "chore: bump version [skip ci]"
           git push origin main
@@ -51,6 +68,6 @@ jobs:
 
       # Publish to npm
       - name: Publish to npm
-        run: npm publish --access public
+        run: yarn npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
