@@ -1,5 +1,5 @@
 # GitHub Actions workflow for auto-publishing a React Native package with Yarn PnP
-name: Publish React Native Package
+name: Publish Package
 
 on:
   push:

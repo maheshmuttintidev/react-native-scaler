@@ -1,4 +1,3 @@
-// jest.config.cjs
 module.exports = {
   preset: 'react-native',
   transform: {
