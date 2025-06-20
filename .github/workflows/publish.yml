@@ -1,0 +1,56 @@
+# GitHub Actions workflow for auto-publishing an npm package with version bump
+name: Publish Package
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      # Checkout the repository
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history for git operations
+          token: ${{ secrets.GH_TOKEN }} # Use a PAT for push access
+
+      # Set up Node.js
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      # Install dependencies
+      - name: Install dependencies
+        run: npm install
+
+      # Run tests (optional, adjust based on your project)
+      - name: Run tests
+        run: npm test
+
+      # Configure git user for commits
+      - name: Configure git
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+      # Bump version and create git tag
+      - name: Bump version
+        run: |
+          npm version patch --no-git-tag-version
+          git add package.json
+          git commit -m "chore: bump version [skip ci]"
+          git push origin main
+          NEW_VERSION=$(node -p "require('./package.json').version")
+          git tag v${NEW_VERSION}
+          git push origin v${NEW_VERSION}
+
+      # Publish to npm
+      - name: Publish to npm
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
