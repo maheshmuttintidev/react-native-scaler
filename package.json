@@ -4,6 +4,7 @@
   "description": "Responsive scaling utilities for React Native CLI and Expo apps",
   "main": "dist/index.js",
   "module": "dist/index.esm.js",
+  "type": "module",
   "types": "dist/index.d.ts",
   "packageManager": "yarn@4.9.2",
   "files": [
