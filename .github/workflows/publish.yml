@@ -1,5 +1,5 @@
 # GitHub Actions workflow for auto-publishing a React Native package with Yarn PnP
-name: Publish Package
+name: Publish React Native Package
 
 on:
   push:
@@ -45,9 +45,11 @@ jobs:
       - name: Install dependencies
         run: yarn install --immutable
 
-      # Run tests (adjust based on your project)
+      # Run tests
       - name: Run tests
         run: yarn test
+        env:
+          NODE_OPTIONS: --experimental-vm-modules # Enable ESM support for Jest
 
       # Configure git user for commits
       - name: Configure git
@@ -69,5 +71,5 @@ jobs:
       # Publish to npm
       - name: Publish to npm
         run: yarn npm publish --access public
-        env:
+ "+"       env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
