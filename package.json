@@ -15,7 +15,13 @@
     "responsive",
     "scaling",
     "expo",
-    "typescript"
+    "typescript",
+    "react-native-responsive",
+    "react-native-font-scale",
+    "react-native-width-scale",
+    "react-native-height-scale",
+    "@shayrn/react-native-scaler",
+    "react-native-scaler"
   ],
   "author": "Mahesh Muttinti <maheshmuttintidev@gmail.com>",
   "license": "MIT",
