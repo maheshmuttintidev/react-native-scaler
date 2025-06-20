@@ -21,7 +21,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          registry-url: 'https://npm.pkg.github.com'
+          registry-url: 'https://registry.npmjs.org'
 
       # Set up Yarn with cache
       - name: Set up Yarn
@@ -77,8 +77,8 @@ jobs:
         env:
           NODE_OPTIONS: --require ./.pnp.cjs
 
-      # Publish to GitHub Packages
-      - name: Publish to GitHub Packages
-        run: yarn npm publish
+      # Publish to npm
+      - name: Publish to npm
+        run: yarn npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
