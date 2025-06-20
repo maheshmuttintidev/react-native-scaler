@@ -7,9 +7,6 @@
   "module": "dist/index.esm.js",
   "types": "dist/index.d.ts",
   "packageManager": "yarn@4.9.2",
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
-  },
   "files": [
     "dist"
   ],
