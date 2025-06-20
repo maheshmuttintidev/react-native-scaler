@@ -29,7 +29,7 @@ jobs:
         run: |
           corepack enable
           yarn set version 4.9.2
-          yarn config set nodeLinker node-modules # Use node-modules linker
+          yarn config set nodeLinker node-modules
           echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > .npmrc
 
       # Install dependencies
@@ -69,7 +69,7 @@ jobs:
       - name: Bump version
         run: |
           echo "Current version: $(node -p "require('./package.json').version")"
-          yarn version --patch --no-git-tag-version
+          yarn version patch
           git add package.json
           git commit -m "chore: bump patch version [skip ci]" || echo "No changes to commit"
           git push origin main
