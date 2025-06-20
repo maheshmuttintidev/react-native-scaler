@@ -31,7 +31,7 @@ jobs:
           yarn config set nodeLinker pnp
           yarn config set pnpMode strict
           yarn config set enableStrictSsl true
-          yarn config set npmAuthToken ${{ secrets.NPM_TOKEN }} # Set NPM token for Yarn
+          yarn config set npmAuthToken ${{ secrets.NPM_TOKEN }}
 
       # Cache Yarn dependencies
       - name: Cache Yarn dependencies
@@ -66,7 +66,7 @@ jobs:
       - name: Bump version
         run: |
           echo "Current version: $(node -p "require('./package.json').version")"
-          node -e "const fs = require('fs'); const pkg = require('./package.json'); const [major, minor, patch] = pkg.version.split('.').map(Number); pkg.version = \`${major}.${minor}.${patch + 1}\`; fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));"
+          node -e 'const fs = require("fs"); const pkg = require("./package.json"); const [major, minor, patch] = pkg.version.split(".").map(Number); pkg.version = `${major}.${minor}.${patch + 1}`; fs.writeFileSync("package.json", JSON.stringify(pkg, null, 2));'
           git add package.json
           git commit -m "chore: bump patch version [skip ci]" || echo "No changes to commit"
           git push origin main
