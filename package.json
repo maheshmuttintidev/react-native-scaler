@@ -1,6 +1,6 @@
 {
   "name": "@shayrn/react-native-scaler",
-  "version": "1.0.13",
+  "version": "1.0.14",
   "type": "module",
   "description": "Responsive scaling utilities for React Native CLI and Expo apps",
   "main": "dist/index.js",
