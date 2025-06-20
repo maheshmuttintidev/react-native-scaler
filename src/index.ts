@@ -1,8 +1,14 @@
 export {
-  configureScaler, responsive,
-  responsiveStyles, scale,
-  scaleFont, scaleHeight, scaleLineHeight,
+  configureScaler,
+  responsive,
+  responsiveStyles,
+  scale,
+  scaleFont,
+  scaleHeight,
+  scaleLineHeight,
   scaleRadius,
-  scaleWidth
+  scaleWidth,
+  screenHeight,
+  screenWidth
 } from './responsive';
 

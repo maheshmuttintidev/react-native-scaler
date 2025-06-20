@@ -11,6 +11,9 @@ let REFERENCE_HEIGHT = DEFAULT_REFERENCE_HEIGHT;
 // Get device dimensions
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
+export const screenWidth = SCREEN_WIDTH;
+export const screenHeight = SCREEN_HEIGHT;
+
 // Calculate scale factors
 let widthScale = SCREEN_WIDTH / REFERENCE_WIDTH;
 let heightScale = SCREEN_HEIGHT / REFERENCE_HEIGHT;
@@ -45,7 +48,7 @@ export const scaleLineHeight = (lineHeight: number): number => {
   const lineHeightScaleFactor =
     Platform.OS === 'ios' ? scaleFactor : scaleFactor * 0.95;
   return Math.round(
-    PixelRatio.roundToNearestPixel(lineHeight * lineHeightScaleFactor),
+    PixelRatio.roundToNearestPixel(lineHeight * lineHeightScaleFactor)
   );
 };
 
