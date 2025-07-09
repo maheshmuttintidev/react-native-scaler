@@ -17,20 +17,28 @@ jobs:
           token: ${{ secrets.GH_TOKEN }}
 
       # Set up Node.js
-      - name: Set up Node.js
+      - name: Set up Node.js and Corepack
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
-          cache: 'yarn'
 
-      # Set up Yarn
-      - name: Set up Yarn
+      # Enable Corepack and prepare correct Yarn version BEFORE caching
+      - name: Enable Corepack and prepare Yarn
         run: |
           corepack enable
-          yarn set version 4.9.2
-          yarn config set nodeLinker node-modules
-          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > .npmrc
+          corepack prepare yarn@4.9.2 --activate
+          yarn --version
+
+      # Set up Yarn cache
+      - name: Setup Yarn cache
+        uses: actions/setup-node@v4
+        with:
+          cache: 'yarn'
+
+      # Configure npm token for publishing
+      - name: Configure npm auth
+        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > .npmrc
 
       # Install dependencies
       - name: Install dependencies
