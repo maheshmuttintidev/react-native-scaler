@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'package.json'
+      - 'src/**'
+      - '.github/workflows/publish.yml'
 
 jobs:
   publish:
@@ -13,91 +17,85 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-          token: ${{ secrets.GH_TOKEN }}
+          fetch-depth: 2
+
+      # Check if version was manually bumped
+      - name: Check version bump
+        id: version-check
+        run: |
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          git checkout HEAD~1 -- package.json 2>/dev/null || true
+          PREVIOUS_VERSION=$(node -p "require('./package.json').version" 2>/dev/null || echo "0.0.0")
+          git checkout HEAD -- package.json
+
+          echo "Previous version: $PREVIOUS_VERSION"
+          echo "Current version: $CURRENT_VERSION"
+
+          if [ "$CURRENT_VERSION" = "$PREVIOUS_VERSION" ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "No version change detected. Skipping publish."
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+            echo "Version changed from $PREVIOUS_VERSION to $CURRENT_VERSION"
+          fi
 
       # Set up Node.js
-      - name: Set up Node.js and Corepack
+      - name: Set up Node.js
+        if: steps.version-check.outputs.skip != 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
+          cache: 'yarn'
 
-      # Enable Corepack and prepare correct Yarn version BEFORE caching
-      - name: Enable Corepack and prepare Yarn
+      # Enable Corepack
+      - name: Enable Corepack
+        if: steps.version-check.outputs.skip != 'true'
         run: |
           corepack enable
           corepack prepare yarn@4.9.2 --activate
           yarn --version
 
-      # Set up Yarn cache
-      - name: Setup Yarn cache
-        uses: actions/setup-node@v4
-        with:
-          cache: 'yarn'
-
-      # Configure npm token for publishing
-      - name: Configure npm auth
-        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > .npmrc
-
       # Install dependencies
       - name: Install dependencies
+        if: steps.version-check.outputs.skip != 'true'
         run: yarn install --immutable
 
-      # Verify package.json exists
-      - name: Verify package.json
-        run: |
-          if [ ! -f package.json ]; then
-            echo "Error: package.json not found"
-            exit 1
-          fi
+      # Run tests
+      - name: Run tests
+        if: steps.version-check.outputs.skip != 'true'
+        run: yarn test
 
       # Build package
       - name: Build package
-        run: |
-          yarn build || { echo "Build failed"; exit 1; }
-          ls -la dist
+        if: steps.version-check.outputs.skip != 'true'
+        run: yarn build
 
-      # Verify dist folder
-      - name: Verify dist folder
+      # Verify build artifacts
+      - name: Verify build artifacts
+        if: steps.version-check.outputs.skip != 'true'
         run: |
           ls -la dist
           if [ ! -f dist/index.js ] || [ ! -f dist/index.esm.js ] || [ ! -f dist/index.d.ts ]; then
-            echo "Error: dist files missing"
+            echo "Error: Required build artifacts missing"
             exit 1
           fi
 
-      # Configure git user for commits
-      - name: Configure git
-        run: |
-          git config user.name "maheshmuttintidev"
-          git config user.email "maheshmuttintidev@gmail.com"
-
-      # Bump version and create git tag
-      - name: Bump version
-        run: |
-          echo "Current version: $(node -p "require('./package.json').version")"
-          yarn version patch
-          git add package.json
-          git commit -m "chore: bump patch version [skip ci]" || echo "No changes to commit"
-          git push origin main
-          NEW_VERSION=$(node -p "require('./package.json').version")
-          echo "New version: $NEW_VERSION"
-          git tag v${NEW_VERSION}
-          git push origin v${NEW_VERSION}
-
-      # Debug npm authentication
-      - name: Debug npm authentication
-        run: |
-          echo "NPM_TOKEN is set: ${{ secrets.NPM_TOKEN != '' }}"
-          npm whoami
-          echo "Package name: $(node -p "require('./package.json').name")"
-          echo "Package version: $(node -p "require('./package.json').version")"
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
       # Publish to npm
       - name: Publish to npm
-        run: npm publish --access public
+        if: steps.version-check.outputs.skip != 'true'
+        run: yarn npm publish --access public
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          YARN_NPM_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # Create git tag
+      - name: Create and push git tag
+        if: steps.version-check.outputs.skip != 'true'
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "v${VERSION}" -m "Release v${VERSION}"
+          git push origin "v${VERSION}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
