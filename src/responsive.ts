@@ -229,21 +229,32 @@ export const responsiveStyles = {
 };
 
 // Utility to handle orientation changes
-export const onOrientationChange = (callback: () => void): void => {
+export const onOrientationChange = (
+  callback: () => void
+): { remove: () => void } => {
   const subscription = Dimensions.addEventListener('change', () => {
     const { width, height } = Dimensions.get('window');
     // Recalculate scales
     widthScale = width / REFERENCE_WIDTH;
     heightScale = height / REFERENCE_HEIGHT;
     uniformScale = Math.min(widthScale, heightScale);
-    
+
     callback();
   });
-  
+
   return subscription;
 };
 
-// Export device information and scales for advanced usage
+// Export device information and scales for advanced usage (as getter to always get current values)
+export const getScales = () => ({
+  width: widthScale,
+  height: heightScale,
+  uniform: uniformScale,
+  pixel: devicePixelRatio,
+  font: fontScale,
+});
+
+// Deprecated: Use getScales() instead for accurate values after orientation changes
 export const scales = {
   width: widthScale,
   height: heightScale,

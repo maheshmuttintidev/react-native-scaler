@@ -1,5 +1,9 @@
 export {
   configureScaler,
+  deviceInfo,
+  getPixelSize,
+  getScales,
+  onOrientationChange,
   responsive,
   responsiveStyles,
   scale,
@@ -8,7 +12,14 @@ export {
   scaleLineHeight,
   scaleRadius,
   scaleWidth,
+  scales,
   screenHeight,
-  screenWidth
+  screenWidth,
+} from './responsive';
+
+export type {
+  DeviceInfo,
+  FontScaleOptions,
+  ScaleOptions,
 } from './responsive';
 
