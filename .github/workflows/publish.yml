@@ -1,71 +1,95 @@
-name: Publish Package
+name: Auto Version and Publish
 
 on:
   push:
     branches:
       - main
     paths:
-      - 'package.json'
       - 'src/**'
+      - 'tests/**'
+      - 'package.json'
+      - 'package-lock.json'
       - '.github/workflows/publish.yml'
+
+permissions:
+  contents: write
+  packages: write
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      # Checkout the repository
+      # Checkout with full history for version detection
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2
-
-      # Check if version was manually bumped
-      - name: Check version bump
-        id: version-check
-        run: |
-          CURRENT_VERSION=$(node -p "require('./package.json').version")
-          git checkout HEAD~1 -- package.json 2>/dev/null || true
-          PREVIOUS_VERSION=$(node -p "require('./package.json').version" 2>/dev/null || echo "0.0.0")
-          git checkout HEAD -- package.json
-
-          echo "Previous version: $PREVIOUS_VERSION"
-          echo "Current version: $CURRENT_VERSION"
-
-          if [ "$CURRENT_VERSION" = "$PREVIOUS_VERSION" ]; then
-            echo "skip=true" >> $GITHUB_OUTPUT
-            echo "No version change detected. Skipping publish."
-          else
-            echo "skip=false" >> $GITHUB_OUTPUT
-            echo "Version changed from $PREVIOUS_VERSION to $CURRENT_VERSION"
-          fi
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       # Set up Node.js
       - name: Set up Node.js
-        if: steps.version-check.outputs.skip != 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
           cache: 'npm'
 
+      # Configure git for commits
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      # Determine version bump type from commit messages
+      - name: Determine version bump type
+        id: bump-type
+        run: |
+          # Get commit messages since last tag
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+          if [ -z "$LAST_TAG" ]; then
+            echo "No previous tag found, using all commits"
+            COMMITS=$(git log --pretty=format:"%s" origin/main)
+          else
+            echo "Last tag: $LAST_TAG"
+            COMMITS=$(git log ${LAST_TAG}..HEAD --pretty=format:"%s")
+          fi
+
+          echo "Analyzing commits:"
+          echo "$COMMITS"
+
+          # Check for breaking changes (major bump)
+          if echo "$COMMITS" | grep -qiE "^(BREAKING CHANGE:|feat!:|fix!:|refactor!:)"; then
+            echo "bump=major" >> $GITHUB_OUTPUT
+            echo "Version bump: MAJOR (breaking changes detected)"
+          # Check for features (minor bump)
+          elif echo "$COMMITS" | grep -qiE "^feat(\(.+\))?:"; then
+            echo "bump=minor" >> $GITHUB_OUTPUT
+            echo "Version bump: MINOR (new features detected)"
+          # Check for fixes or other changes (patch bump)
+          elif echo "$COMMITS" | grep -qiE "^(fix|docs|style|refactor|perf|test|chore)(\(.+\))?:"; then
+            echo "bump=patch" >> $GITHUB_OUTPUT
+            echo "Version bump: PATCH (fixes/improvements detected)"
+          # Default to patch for any changes
+          else
+            echo "bump=patch" >> $GITHUB_OUTPUT
+            echo "Version bump: PATCH (default)"
+          fi
+
       # Install dependencies
       - name: Install dependencies
-        if: steps.version-check.outputs.skip != 'true'
         run: npm ci
 
       # Run tests
       - name: Run tests
-        if: steps.version-check.outputs.skip != 'true'
         run: npm test
 
       # Build package
       - name: Build package
-        if: steps.version-check.outputs.skip != 'true'
         run: npm run build
 
       # Verify build artifacts
       - name: Verify build artifacts
-        if: steps.version-check.outputs.skip != 'true'
         run: |
           ls -la dist
           if [ ! -f dist/index.js ] || [ ! -f dist/index.esm.js ] || [ ! -f dist/index.d.ts ]; then
@@ -73,21 +97,72 @@ jobs:
             exit 1
           fi
 
+      # Bump version based on commit analysis
+      - name: Bump version
+        id: version-bump
+        run: |
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          echo "Current version: $CURRENT_VERSION"
+
+          # Bump version using npm
+          npm version ${{ steps.bump-type.outputs.bump }} -m "chore: bump version to %s [skip ci]"
+
+          NEW_VERSION=$(node -p "require('./package.json').version")
+          echo "New version: $NEW_VERSION"
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+
+      # Push version bump and tags
+      - name: Push changes
+        run: |
+          git push origin main --follow-tags
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       # Publish to npm
       - name: Publish to npm
-        if: steps.version-check.outputs.skip != 'true'
         run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      # Create git tag
-      - name: Create and push git tag
-        if: steps.version-check.outputs.skip != 'true'
-        run: |
-          VERSION=$(node -p "require('./package.json').version")
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -a "v${VERSION}" -m "Release v${VERSION}"
-          git push origin "v${VERSION}"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Create GitHub Release
+      - name: Create GitHub Release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const version = '${{ steps.version-bump.outputs.version }}';
+            const tagName = `v${version}`;
+
+            // Get commits since last release
+            let commits = '';
+            try {
+              const { data: tags } = await github.rest.repos.listTags({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                per_page: 2
+              });
+
+              if (tags.length > 1) {
+                const { data: comparison } = await github.rest.repos.compareCommits({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  base: tags[1].name,
+                  head: tagName
+                });
+
+                commits = comparison.commits.map(c => `- ${c.commit.message.split('\n')[0]}`).join('\n');
+              }
+            } catch (error) {
+              console.log('Could not fetch commit history:', error.message);
+            }
+
+            const releaseBody = commits ? `## Changes\n\n${commits}` : 'See commit history for changes.';
+
+            await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: tagName,
+              name: `Release ${tagName}`,
+              body: releaseBody,
+              draft: false,
+              prerelease: false
+            });

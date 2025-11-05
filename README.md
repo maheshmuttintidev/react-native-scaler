@@ -491,12 +491,21 @@ const size = responsive.font(14, {
 
 ## Contributing
 
-Contributions are welcome! Please:
+Contributions are welcome! This project uses **automated versioning and publishing**.
+
+### Quick Start
+
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+3. Make your changes with tests
+4. Commit using [Conventional Commits](https://www.conventionalcommits.org/):
+   - `feat: add new feature` → Minor version bump (1.0.0 → 1.1.0)
+   - `fix: resolve bug` → Patch version bump (1.0.0 → 1.0.1)
+   - `feat!: breaking change` → Major version bump (1.0.0 → 2.0.0)
+5. Push and create a Pull Request
+6. Once merged, the version is **automatically bumped and published to npm**! 🚀
+
+**Full guidelines:** See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed instructions.
 
 ### Development Setup
 
@@ -506,31 +515,35 @@ git clone https://github.com/maheshmuttintidev/react-native-scaler.git
 cd react-native-scaler
 
 # Install dependencies
-yarn install
+npm install
 
 # Run tests
-yarn test
+npm test
 
 # Run tests in watch mode
-yarn test:watch
+npm run test:watch
 
 # Build
-yarn build
+npm run build
 
 # Lint
-yarn lint
+npm run lint
 
 # Format
-yarn format
+npm run format
 ```
 
-### Running Tests
+### Automated Release Process
 
-```bash
-yarn test                # Run all tests
-yarn test:watch          # Run tests in watch mode
-yarn test:coverage       # Generate coverage report
-```
+This project automatically:
+- ✅ Analyzes commit messages to determine version bump
+- ✅ Runs all tests before publishing
+- ✅ Bumps version in package.json
+- ✅ Publishes to npm
+- ✅ Creates GitHub release with changelog
+- ✅ No manual version management needed!
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for commit message guidelines.
 
 ## License
 
