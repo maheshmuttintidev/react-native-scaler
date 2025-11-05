@@ -46,30 +46,22 @@ jobs:
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
-          cache: 'yarn'
-
-      # Enable Corepack
-      - name: Enable Corepack
-        if: steps.version-check.outputs.skip != 'true'
-        run: |
-          corepack enable
-          corepack prepare yarn@4.9.2 --activate
-          yarn --version
+          cache: 'npm'
 
       # Install dependencies
       - name: Install dependencies
         if: steps.version-check.outputs.skip != 'true'
-        run: yarn install --immutable
+        run: npm ci
 
       # Run tests
       - name: Run tests
         if: steps.version-check.outputs.skip != 'true'
-        run: yarn test
+        run: npm test
 
       # Build package
       - name: Build package
         if: steps.version-check.outputs.skip != 'true'
-        run: yarn build
+        run: npm run build
 
       # Verify build artifacts
       - name: Verify build artifacts
@@ -84,9 +76,9 @@ jobs:
       # Publish to npm
       - name: Publish to npm
         if: steps.version-check.outputs.skip != 'true'
-        run: yarn npm publish --access public
+        run: npm publish --access public
         env:
-          YARN_NPM_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       # Create git tag
       - name: Create and push git tag
