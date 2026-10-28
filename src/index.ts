@@ -2,6 +2,8 @@ export {
   configureScaler,
   deviceInfo,
   getPixelSize,
+  getScreenHeight,
+  getScreenWidth,
   getScales,
   onOrientationChange,
   responsive,
@@ -15,6 +17,7 @@ export {
   scales,
   screenHeight,
   screenWidth,
+  useScaler,
 } from './responsive';
 
 export type {

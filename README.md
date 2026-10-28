@@ -558,3 +558,22 @@ MIT © Mahesh Muttinti
 ## Changelog
 
 See [CHANGELOG.md](CHANGELOG.md) for release history.
+
+## Dynamic dimensions (since 1.3.0)
+
+All scaling functions, `getScales()`, `deviceInfo`, `scales` and `responsiveStyles` now read the
+current window size (and the current font scale) every time they are called, so values stay correct
+after rotation, split-screen, foldables and font-size changes.
+
+- `useScaler()` — hook that re-renders your component when the window or font scale changes:
+  ```tsx
+  const { width, scale, scaleFont } = useScaler();
+  ```
+- `getScreenWidth()` / `getScreenHeight()` — live window size.
+- `screenWidth` / `screenHeight` remain exported but are **deprecated**: they are captured once at import.
+- `scaleFont` clamps its result to `min` (default `10`) and `max` (default `100`). Pass your own
+  `min`/`max` to change this. With `respectAccessibility: false` the result is divided by the user's
+  current font scale.
+
+Styles created once with `StyleSheet.create` at module level are still computed only once; build styles
+inside components (e.g. with `useScaler()`) if they must react to dimension changes.
