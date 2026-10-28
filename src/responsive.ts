@@ -1,4 +1,4 @@
-import { Dimensions, PixelRatio } from 'react-native';
+import { Dimensions, PixelRatio, useWindowDimensions } from 'react-native';
 
 // Default reference dimensions from Figma design
 const DEFAULT_REFERENCE_WIDTH = 402;
@@ -8,20 +8,53 @@ const DEFAULT_REFERENCE_HEIGHT = 874;
 let REFERENCE_WIDTH = DEFAULT_REFERENCE_WIDTH;
 let REFERENCE_HEIGHT = DEFAULT_REFERENCE_HEIGHT;
 
-// Get device dimensions
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+type Constraints = { min?: number; max?: number };
 
-export const screenWidth = SCREEN_WIDTH;
-export const screenHeight = SCREEN_HEIGHT;
+/**
+ * Current window size. Read at call time so values follow rotation,
+ * split-screen, foldables and window resizes.
+ */
+const getWindow = (): { width: number; height: number } => {
+  const { width, height } = Dimensions.get('window');
+  return { width, height };
+};
 
-// Get device pixel ratio and font scale
-const devicePixelRatio = PixelRatio.get();
-const fontScale = PixelRatio.getFontScale();
+const computeScales = () => {
+  const { width, height } = getWindow();
+  const widthScale = width / REFERENCE_WIDTH;
+  const heightScale = height / REFERENCE_HEIGHT;
+  return {
+    widthScale,
+    heightScale,
+    uniformScale: Math.min(widthScale, heightScale),
+  };
+};
 
-// Calculate scale factors
-let widthScale = SCREEN_WIDTH / REFERENCE_WIDTH;
-let heightScale = SCREEN_HEIGHT / REFERENCE_HEIGHT;
-let uniformScale = Math.min(widthScale, heightScale);
+const clamp = (value: number, { min, max }: Constraints): number => {
+  let result = value;
+  if (min !== undefined) result = Math.max(result, min);
+  if (max !== undefined) result = Math.min(result, max);
+  return result;
+};
+
+const round = (value: number): number =>
+  Math.round(PixelRatio.roundToNearestPixel(value));
+
+/**
+ * Window width captured when the module was first imported.
+ * @deprecated Static value; use `getScreenWidth()` or `useScaler()` instead.
+ */
+export const screenWidth = getWindow().width;
+/**
+ * Window height captured when the module was first imported.
+ * @deprecated Static value; use `getScreenHeight()` or `useScaler()` instead.
+ */
+export const screenHeight = getWindow().height;
+
+/** Current window width (live). */
+export const getScreenWidth = (): number => getWindow().width;
+/** Current window height (live). */
+export const getScreenHeight = (): number => getWindow().height;
 
 // Configuration function to set custom reference dimensions
 export const configureScaler = (config: {
@@ -30,240 +63,216 @@ export const configureScaler = (config: {
 }): void => {
   REFERENCE_WIDTH = config.referenceWidth ?? DEFAULT_REFERENCE_WIDTH;
   REFERENCE_HEIGHT = config.referenceHeight ?? DEFAULT_REFERENCE_HEIGHT;
-  
-  widthScale = SCREEN_WIDTH / REFERENCE_WIDTH;
-  heightScale = SCREEN_HEIGHT / REFERENCE_HEIGHT;
-  uniformScale = Math.min(widthScale, heightScale);
 };
 
-// Enhanced function to scale sizes with optional constraints
-export const scale = (size: number, options?: {
-  min?: number;
-  max?: number;
-  useUniform?: boolean;
-}): number => {
-  const { min, max, useUniform = true } = options || {};
-  
-  const scaleFactor = useUniform ? uniformScale : widthScale;
-  let scaledSize = size * scaleFactor;
-  
-  // Apply constraints if provided
-  if (min !== undefined) scaledSize = Math.max(scaledSize, min);
-  if (max !== undefined) scaledSize = Math.min(scaledSize, max);
-  
-  return Math.round(PixelRatio.roundToNearestPixel(scaledSize));
+// Scale sizes with optional constraints
+export const scale = (
+  size: number,
+  options?: { min?: number; max?: number; useUniform?: boolean }
+): number => {
+  const { useUniform = true } = options || {};
+  const { uniformScale, widthScale } = computeScales();
+  return round(clamp(size * (useUniform ? uniformScale : widthScale), options || {}));
 };
 
-// Enhanced font scaling with proper font scale consideration
-export const scaleFont = (fontSize: number, options?: {
-  min?: number;
-  max?: number;
-  respectAccessibility?: boolean;
-}): number => {
+/**
+ * Scale a font size.
+ *
+ * Note: the result is clamped to `min` (default 10) and `max` (default 100).
+ * With `respectAccessibility: false` the result is divided by the user's
+ * current font scale (read at call time) to cancel the OS text scaling.
+ */
+export const scaleFont = (
+  fontSize: number,
+  options?: { min?: number; max?: number; respectAccessibility?: boolean }
+): number => {
   const { min = 10, max = 100, respectAccessibility = true } = options || {};
-  
-  let scaledFont: number;
-  
-  if (respectAccessibility) {
-    // Method 1: Respect user's accessibility settings
-    scaledFont = fontSize * uniformScale;
-  } else {
-    // Method 2: Normalize font scaling to avoid double scaling
-    scaledFont = (fontSize * uniformScale) / fontScale;
-  }
-  
-  // Apply constraints
-  scaledFont = Math.max(scaledFont, min);
-  scaledFont = Math.min(scaledFont, max);
-  
-  return Math.round(PixelRatio.roundToNearestPixel(scaledFont));
+  const { uniformScale } = computeScales();
+  let scaledFont = fontSize * uniformScale;
+  if (!respectAccessibility) scaledFont /= PixelRatio.getFontScale();
+  return round(clamp(scaledFont, { min, max }));
 };
 
-// Enhanced line height scaling
-export const scaleLineHeight = (lineHeight: number, options?: {
-  min?: number;
-  max?: number;
-  respectAccessibility?: boolean;
-}): number => {
-  const { min, max, respectAccessibility = true } = options || {};
-  
-  let scaledLineHeight: number;
-  
-  if (respectAccessibility) {
-    scaledLineHeight = lineHeight * uniformScale;
-  } else {
-    scaledLineHeight = (lineHeight * uniformScale) / fontScale;
-  }
-  
-  // Apply constraints if provided
-  if (min !== undefined) scaledLineHeight = Math.max(scaledLineHeight, min);
-  if (max !== undefined) scaledLineHeight = Math.min(scaledLineHeight, max);
-  
-  return Math.round(PixelRatio.roundToNearestPixel(scaledLineHeight));
+// Line height scaling (font scale read at call time)
+export const scaleLineHeight = (
+  lineHeight: number,
+  options?: { min?: number; max?: number; respectAccessibility?: boolean }
+): number => {
+  const { respectAccessibility = true } = options || {};
+  const { uniformScale } = computeScales();
+  let scaled = lineHeight * uniformScale;
+  if (!respectAccessibility) scaled /= PixelRatio.getFontScale();
+  return round(clamp(scaled, options || {}));
 };
 
-// Function to scale border radius
-export const scaleRadius = (radius: number, options?: {
-  min?: number;
-  max?: number;
-}): number => {
-  const { min, max } = options || {};
-  
-  let scaledRadius = radius * uniformScale;
-  
-  // Apply constraints if provided
-  if (min !== undefined) scaledRadius = Math.max(scaledRadius, min);
-  if (max !== undefined) scaledRadius = Math.min(scaledRadius, max);
-  
-  return Math.round(PixelRatio.roundToNearestPixel(scaledRadius));
+// Scale border radius
+export const scaleRadius = (radius: number, options?: Constraints): number =>
+  round(clamp(radius * computeScales().uniformScale, options || {}));
+
+// Scale based on width only
+export const scaleWidth = (size: number, options?: Constraints): number =>
+  round(clamp(size * computeScales().widthScale, options || {}));
+
+// Scale based on height only
+export const scaleHeight = (size: number, options?: Constraints): number =>
+  round(clamp(size * computeScales().heightScale, options || {}));
+
+// Pixel-perfect sizes
+export const getPixelSize = (layoutSize: number): number =>
+  PixelRatio.getPixelSizeForLayoutSize(layoutSize);
+
+export type DeviceInfo = {
+  readonly pixelRatio: number;
+  readonly fontScale: number;
+  readonly isHighDensity: boolean;
+  readonly isTablet: boolean;
+  readonly isSmallDevice: boolean;
+  readonly aspectRatio: number;
 };
 
-// Function to scale sizes based on width only
-export const scaleWidth = (size: number, options?: {
-  min?: number;
-  max?: number;
-}): number => {
-  const { min, max } = options || {};
-  
-  let scaledSize = size * widthScale;
-  
-  // Apply constraints if provided
-  if (min !== undefined) scaledSize = Math.max(scaledSize, min);
-  if (max !== undefined) scaledSize = Math.min(scaledSize, max);
-  
-  return Math.round(PixelRatio.roundToNearestPixel(scaledSize));
+/** Device information. Every property is evaluated on access (live). */
+export const deviceInfo: DeviceInfo = {
+  get pixelRatio() {
+    return PixelRatio.get();
+  },
+  get fontScale() {
+    return PixelRatio.getFontScale();
+  },
+  get isHighDensity() {
+    return PixelRatio.get() >= 2;
+  },
+  get isTablet() {
+    const { width, height } = getWindow();
+    return Math.min(width, height) >= 768;
+  },
+  get isSmallDevice() {
+    const { width, height } = getWindow();
+    return Math.min(width, height) < 350;
+  },
+  get aspectRatio() {
+    const { width, height } = getWindow();
+    return width / height;
+  },
 };
 
-// Function to scale sizes based on height only
-export const scaleHeight = (size: number, options?: {
-  min?: number;
-  max?: number;
-}): number => {
-  const { min, max } = options || {};
-  
-  let scaledSize = size * heightScale;
-  
-  // Apply constraints if provided
-  if (min !== undefined) scaledSize = Math.max(scaledSize, min);
-  if (max !== undefined) scaledSize = Math.min(scaledSize, max);
-  
-  return Math.round(PixelRatio.roundToNearestPixel(scaledSize));
-};
-
-// Utility function to get pixel-perfect sizes
-export const getPixelSize = (layoutSize: number): number => {
-  return PixelRatio.getPixelSizeForLayoutSize(layoutSize);
-};
-
-// Device information utilities
-export const deviceInfo = {
-  pixelRatio: devicePixelRatio,
-  fontScale: fontScale,
-  isHighDensity: devicePixelRatio >= 2,
-  isTablet: Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) >= 768,
-  isSmallDevice: Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) < 350,
-  aspectRatio: SCREEN_WIDTH / SCREEN_HEIGHT,
-};
-
-// Enhanced responsive utility with more options
+// Responsive utility
 export const responsive = {
-  width: (value: number, options?: { min?: number; max?: number }) => 
-    scaleWidth(value, options),
-  
-  height: (value: number, options?: { min?: number; max?: number }) => 
-    scaleHeight(value, options),
-  
-  font: (value: number, options?: { 
-    min?: number; 
-    max?: number; 
-    respectAccessibility?: boolean 
-  }) => scaleFont(value, options),
-  
-  lineHeight: (value: number, options?: { 
-    min?: number; 
-    max?: number; 
-    respectAccessibility?: boolean 
-  }) => scaleLineHeight(value, options),
-  
-  radius: (value: number, options?: { min?: number; max?: number }) => 
-    scaleRadius(value, options),
-  
-  spacing: (value: number, options?: { 
-    min?: number; 
-    max?: number; 
-    useUniform?: boolean 
-  }) => scale(value, options),
-  
+  width: (value: number, options?: Constraints) => scaleWidth(value, options),
+  height: (value: number, options?: Constraints) => scaleHeight(value, options),
+  font: (
+    value: number,
+    options?: { min?: number; max?: number; respectAccessibility?: boolean }
+  ) => scaleFont(value, options),
+  lineHeight: (
+    value: number,
+    options?: { min?: number; max?: number; respectAccessibility?: boolean }
+  ) => scaleLineHeight(value, options),
+  radius: (value: number, options?: Constraints) => scaleRadius(value, options),
+  spacing: (
+    value: number,
+    options?: { min?: number; max?: number; useUniform?: boolean }
+  ) => scale(value, options),
   // Adaptive spacing based on device type
   adaptiveSpacing: (value: number) => {
     if (deviceInfo.isTablet) return scale(value * 1.2);
     if (deviceInfo.isSmallDevice) return scale(value * 0.8);
     return scale(value);
   },
-  
-  // Pixel perfect sizing
   pixelPerfect: (value: number) => getPixelSize(value),
 };
 
-// Enhanced responsive styles with better defaults
+/** Ready-made styles. Values are computed on access (live). */
 export const responsiveStyles = {
-  container: {
-    padding: responsive.adaptiveSpacing(16),
-    margin: responsive.adaptiveSpacing(20),
-    borderRadius: responsive.radius(8, { min: 4, max: 16 }),
-    gap: responsive.spacing(10),
+  get container() {
+    return {
+      padding: responsive.adaptiveSpacing(16),
+      margin: responsive.adaptiveSpacing(20),
+      borderRadius: responsive.radius(8, { min: 4, max: 16 }),
+      gap: responsive.spacing(10),
+    };
   },
-  text: {
-    fontSize: responsive.font(14, { min: 12, max: 18 }),
-    lineHeight: responsive.lineHeight(20, { min: 14, max: 24 }),
+  get text() {
+    return {
+      fontSize: responsive.font(14, { min: 12, max: 18 }),
+      lineHeight: responsive.lineHeight(20, { min: 14, max: 24 }),
+    };
   },
-  // New: Different styles for different device types
-  adaptiveText: {
-    fontSize: deviceInfo.isTablet ? 
-      responsive.font(16, { min: 14, max: 20 }) : 
-      responsive.font(14, { min: 12, max: 18 }),
-    lineHeight: deviceInfo.isTablet ? 
-      responsive.lineHeight(24, { min: 18, max: 28 }) : 
-      responsive.lineHeight(20, { min: 14, max: 24 }),
+  get adaptiveText() {
+    return deviceInfo.isTablet
+      ? {
+          fontSize: responsive.font(16, { min: 14, max: 20 }),
+          lineHeight: responsive.lineHeight(24, { min: 18, max: 28 }),
+        }
+      : {
+          fontSize: responsive.font(14, { min: 12, max: 18 }),
+          lineHeight: responsive.lineHeight(20, { min: 14, max: 24 }),
+        };
   },
 };
 
-// Utility to handle orientation changes
+/**
+ * Subscribe to window dimension changes. Scales are always computed live,
+ * so this is only needed to trigger your own re-render/recompute.
+ */
 export const onOrientationChange = (
   callback: () => void
-): { remove: () => void } => {
-  const subscription = Dimensions.addEventListener('change', () => {
-    const { width, height } = Dimensions.get('window');
-    // Recalculate scales
-    widthScale = width / REFERENCE_WIDTH;
-    heightScale = height / REFERENCE_HEIGHT;
-    uniformScale = Math.min(widthScale, heightScale);
-
+): { remove: () => void } =>
+  Dimensions.addEventListener('change', () => {
     callback();
   });
 
-  return subscription;
+// Current scale factors
+export const getScales = () => {
+  const { widthScale, heightScale, uniformScale } = computeScales();
+  return {
+    width: widthScale,
+    height: heightScale,
+    uniform: uniformScale,
+    pixel: PixelRatio.get(),
+    font: PixelRatio.getFontScale(),
+  };
 };
 
-// Export device information and scales for advanced usage (as getter to always get current values)
-export const getScales = () => ({
-  width: widthScale,
-  height: heightScale,
-  uniform: uniformScale,
-  pixel: devicePixelRatio,
-  font: fontScale,
-});
-
-// Deprecated: Use getScales() instead for accurate values after orientation changes
+/** @deprecated Use `getScales()` or `useScaler()`. Properties are now live getters. */
 export const scales = {
-  width: widthScale,
-  height: heightScale,
-  uniform: uniformScale,
-  pixel: devicePixelRatio,
-  font: fontScale,
+  get width() {
+    return getScales().width;
+  },
+  get height() {
+    return getScales().height;
+  },
+  get uniform() {
+    return getScales().uniform;
+  },
+  get pixel() {
+    return PixelRatio.get();
+  },
+  get font() {
+    return PixelRatio.getFontScale();
+  },
 };
 
-// Type definitions for better TypeScript support
+/**
+ * React hook: re-renders the component when the window size or font scale
+ * changes and returns the current dimensions plus scaling helpers.
+ */
+export const useScaler = () => {
+  const { width, height, fontScale } = useWindowDimensions();
+  return {
+    width,
+    height,
+    fontScale,
+    scales: getScales(),
+    scale,
+    scaleFont,
+    scaleLineHeight,
+    scaleRadius,
+    scaleWidth,
+    scaleHeight,
+    responsive,
+  };
+};
+
 export type ScaleOptions = {
   min?: number;
   max?: number;
@@ -275,5 +284,3 @@ export type FontScaleOptions = {
   max?: number;
   respectAccessibility?: boolean;
 };
-
-export type DeviceInfo = typeof deviceInfo;

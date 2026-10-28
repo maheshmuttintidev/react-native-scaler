@@ -16,6 +16,9 @@ import {
   scales,
   screenHeight,
   screenWidth,
+  getScreenWidth,
+  getScreenHeight,
+  useScaler,
 } from '../src/responsive';
 
 // Mock React Native modules
@@ -26,6 +29,7 @@ jest.mock('react-native', () => ({
       remove: jest.fn(),
     })),
   },
+  useWindowDimensions: jest.fn(() => ({ width: 402, height: 874, fontScale: 1, scale: 2 })),
   PixelRatio: {
     get: jest.fn(() => 2),
     getFontScale: jest.fn(() => 1),
@@ -508,5 +512,53 @@ describe('react-native-scaler', () => {
       scaleFont(14, {});
       scaleFont(14);
     });
+  });
+});
+
+describe('dynamic dimensions', () => {
+  beforeEach(() => {
+    (Dimensions.get as jest.Mock).mockReturnValue({ width: 402, height: 874 });
+    (PixelRatio.getFontScale as jest.Mock).mockReturnValue(1);
+    configureScaler({});
+  });
+
+  it('recomputes scale after the window size changes', () => {
+    expect(scaleWidth(100)).toBe(100);
+    (Dimensions.get as jest.Mock).mockReturnValue({ width: 804, height: 874 });
+    expect(scaleWidth(100)).toBe(200);
+    expect(getScreenWidth()).toBe(804);
+    expect(getScreenHeight()).toBe(874);
+    expect(getScales().width).toBe(2);
+    expect(scales.width).toBe(2);
+  });
+
+  it('configureScaler uses the current window size', () => {
+    (Dimensions.get as jest.Mock).mockReturnValue({ width: 804, height: 1748 });
+    configureScaler({ referenceWidth: 402, referenceHeight: 874 });
+    expect(scale(10)).toBe(20);
+  });
+
+  it('deviceInfo is live', () => {
+    expect(deviceInfo.isTablet).toBe(false);
+    (Dimensions.get as jest.Mock).mockReturnValue({ width: 1024, height: 1366 });
+    expect(deviceInfo.isTablet).toBe(true);
+    expect(responsiveStyles.adaptiveText.fontSize).toBeGreaterThanOrEqual(14);
+  });
+
+  it('reads font scale at call time', () => {
+    (PixelRatio.getFontScale as jest.Mock).mockReturnValue(2);
+    expect(scaleFont(40, { respectAccessibility: false })).toBe(20);
+    expect(deviceInfo.fontScale).toBe(2);
+  });
+
+  it('useScaler returns window values and helpers', () => {
+    const result = useScaler();
+    expect(result.width).toBe(402);
+    expect(result.scale(10)).toBe(10);
+  });
+
+  it('keeps deprecated static exports', () => {
+    expect(typeof screenWidth).toBe('number');
+    expect(typeof screenHeight).toBe('number');
   });
 });
