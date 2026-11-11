@@ -72,6 +72,9 @@
     "test:coverage": "jest --coverage"
   },
   "overrides": {
-    "image-size": "^2.0.3"
+    "image-size": "^2.0.3",
+    "minimatch@^9": "^11.0.7",
+    "minimatch@^10": "^11.0.7",
+    "glob@>=9 <14.0.2": "^14.0.2"
   }
 }
